@@ -4,7 +4,7 @@
 #include <linux/sched.h>
 
 
-asmlinkage long get_child_pids(pid_t* list, size_t limit,
+asmlinkage long sys_get_child_pids(pid_t* list, size_t limit,
 		size_t* num_children) {
 
 	struct task_struct* task = NULL;
