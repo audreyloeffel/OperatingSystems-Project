@@ -1,14 +1,13 @@
-#include <syscalls.h>
 #include <linux/linkage.h>
 #include <linux/uaccess.h>
-#include <spinlock.h>
+#include <linux/spinlock.h>
 #include <linux/sched.h>
 
 
 asmlinkage long get_child_pids(pid_t* list, size_t limit,
 		size_t* num_children) {
 
-	task_struct* task = NULL;
+	struct task_struct* task = NULL;
 	long nb_children = 0;
 	long ret;
 
