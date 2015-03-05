@@ -11,7 +11,7 @@ asmlinkage long get_child_pids(pid_t* list, size_t limit,
 	long nb_children = 0;
 	long ret;
 
-	Read_lock (&tasklist_lock);
+	read_lock (&tasklist_lock);
 
 	list_for_each_entry(task, &current->children, sibling)
 	{
@@ -22,7 +22,7 @@ asmlinkage long get_child_pids(pid_t* list, size_t limit,
 			list++; //next elem in the list
 		}
 	}
-	Read_unlock(&tasklist_lock); //release lock before put_user because put_user can sleep -> avoid blocking	
+	read_unlock(&tasklist_lock); //release lock before put_user because put_user can sleep -> avoid blocking	
 
 	ret = put_user(nb_children, num_children); //(value, ptr)
 
