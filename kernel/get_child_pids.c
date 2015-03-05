@@ -8,7 +8,7 @@ asmlinkage long sys_get_child_pids(pid_t* list, size_t limit,
 		size_t* num_children) {
 
 	struct task_struct* task = NULL;
-	long nb_children = 0;
+	size_t nb_children = 0;
 	long ret;
 
 	read_lock (&tasklist_lock);
@@ -31,7 +31,7 @@ asmlinkage long sys_get_child_pids(pid_t* list, size_t limit,
 	}
 	if (nb_children > limit) {
 		ret = -ENOBUFS;
-	} else if (limit = 0) {
+	} else if (limit == 0) {
 		*list = NULL;
 	}
 	return ret;
