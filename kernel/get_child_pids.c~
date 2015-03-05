@@ -1,8 +1,6 @@
 #include <syscalls.h>
-#include <linux/linkage.h>
-#include <linux/uaccess.h>
 #include <spinlock.h>
-#include <linux/sched.h>
+#include <sched.h>
 
 
 asmlinkage long get_child_pids(pid_t* list, size_t limit,
