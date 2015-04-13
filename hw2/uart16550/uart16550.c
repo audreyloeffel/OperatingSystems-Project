@@ -1,10 +1,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/kdev_t.h>
 #include <linux/fs.h>
+#include <linux/kdev_t.h>
+#include <linux/cdev.h>
 #include <linux/kfifo.h>
-#include <asm/semaphore.h>
+#include <linux/module.h>
+#include <linux/semaphore.h>
 #include "uart16550.h"
 #include "uart16550_hw.h"
 
@@ -20,7 +22,7 @@ __FILE__, __LINE__, ##__VA_ARGS__)
 
 static struct class *uart16550_class = NULL;
 
-struct file_operations *fops;
+const struct file_operations *fops;
 
 static int major = 42;
 static int behaviour = OPTION_BOTH;
@@ -28,59 +30,65 @@ static int behaviour = OPTION_BOTH;
 module_param(major, int, S_IRUGO);
 module_param(behaviour, int, S_IRUGO);
 
+struct cdev cdev1;
+struct cdev cdev2;
+
 static int Device_Open = 0;
 
-static struct semaphore inmutex;
-static struct semaphore outmutex;
-DECLARE_MUTEX(inmutex);
-DECLARE_MUTEX(outmutex);
+/*struct semaphore inmutex;
+struct semaphore outmutex;
+DEFINE_SEMAPHORE(inmutex);
+DEFINE_SEMAPHORE(outmutex);
 
-static struct kfifo inbuffer;
-static struct kfifo outbuffer;
-DECLARE_KFIFO(inbuffer, char, FIFO_SIZE);
-DECLARE_KFIFO(outbuffer, char, FIFO_SIZE);
+sema_init(&inmutex, 1);
+sema_init(&outmutex, 1);*/
 
-static int uart16550_open (struct inode * inode, struct file * file){
+/*static struct kfifo inbuff;
+static struct kfifo outbuff;
+DECLARE_KFIFO(inbuff, char, FIFO_SIZE);
+DECLARE_KFIFO(outbuff, char, FIFO_SIZE);*/
+
+static int uart16550_open (struct inode *inode, struct file *file){
     // TODO
     if (Device_Open) return -EBUSY;
     Device_Open++;
     
-    MOD_INC_USE_COUNT;
+    //MOD_INC_USE_COUNT;
     
     //inode->i_rdev = ;
     
-    return SUCCESS;
+    return 0;
 }
 
-static ssize_t uart16550_read (struct file * file, char __user * buffer, size_t length, loff_t *offset){
+static ssize_t uart16550_read (struct file *file, char __user *buffer, size_t length, loff_t *offset){
     // TODO
     int bytes_read = 0;
     
-    down_interruptible(&inmutex);
+    //down_interruptible(&inmutex);
     
-    while (length && *msg_Ptr)  {
-        put_user(/* BLABLA buffer IN */, buffer++);
+    while (length && *buffer)  {
+        //put_user(kfifo_get(*inbuffer), buffer++);
         
         length--;
         bytes_read++;
     }
     
-    up_interruptible(&inmutex);
+    //up(&inmutex);
     
     return bytes_read;
 }
 
-static int uart16550_release (struct inode * inode, struct file * file){
+static int uart16550_release (struct inode *inode, struct file *file){
     // TODO
     Device_Open--;
     
-    MOD_DEC_USE_COUNT;
+    //MOD_DEC_USE_COUNT;
     
-    return SUCCESS;
+    return 0;
 }
 
-static long uart16550_unlocked_ioctl (struct file * file, unsigned int cmd, unsigned long arg){
-    // TODO
+static long uart16550_unlocked_ioctl (struct file *file, unsigned int cmd, unsigned long arg){
+    return 0;
 }
 
 static int uart16550_write(struct file *file, const char *user_buffer,
@@ -138,8 +146,7 @@ irqreturn_t interrupt_handler(int irq_no, void *data)
 static int uart16550_init(void)
 {
     int have_com1, have_com2;
-    
-    int ret1, ret2;
+
     if(behaviour == OPTION_COM1) {
         have_com1 = 1;
         have_com2 = 0;
@@ -155,8 +162,11 @@ static int uart16550_init(void)
     
     // initialize fops...
     
-    struct cdev *my_cdev = cdev_alloc();
-    cdev_init(&my_cdev, &fops);
+
+    cdev_init(&cdev1, fops);
+    cdev1.owner = THIS_MODULE;
+    cdev_init(&cdev2, fops);
+    cdev2.owner = THIS_MODULE;
     
     /*
      * Setup a sysfs class & device to make /dev/com1 & /dev/com2 appear.
@@ -164,28 +174,20 @@ static int uart16550_init(void)
     uart16550_class = class_create(THIS_MODULE, "uart16550");
     
     if (have_com1) {
-        ret1 = register_chrdev_region(0, 1, THIS_MODULE->name);
-        cdev_add(&my_cdev, 0, 1);
+        cdev_add(&cdev1, 0, 1);
         /* Setup the hardware device for COM1 */
         uart16550_hw_setup_device(COM1_BASEPORT, THIS_MODULE->name);
         /* Create the sysfs info for /dev/com1 */
         device_create(uart16550_class, NULL, MKDEV(major, 0), NULL, "com1");
     }
     if (have_com2) {
-        ret2 = register_chrdev_region(1, 1, THIS_MODULE->name);
-        cdev_add(&my_cdev, 1, 1);
+        cdev_add(&cdev2, 1, 1);
         /* Setup the hardware device for COM2 */
         uart16550_hw_setup_device(COM2_BASEPORT, THIS_MODULE->name);
         /* Create the sysfs info for /dev/com2 */
         device_create(uart16550_class, NULL, MKDEV(major, 1), NULL, "com2");
     }
     if(have_com1 == 1 && have_com2 == 1){
-        if(ret1 != 0) {
-            unregister_chrdev_region(1, 1);
-        }
-        else if(ret2 != 0) {
-            unregister_chrdev_region(0, 1);
-        }
     }
     return 0;
 }
@@ -208,27 +210,20 @@ static void uart16550_cleanup(void)
     }
     
     if (have_com1) {
-        int ret1 = unregister_chrdev_region(0, 1);
         /* Reset the hardware device for COM1 */
         uart16550_hw_cleanup_device(COM1_BASEPORT);
         /* Remove the sysfs info for /dev/com1 */
         device_destroy(uart16550_class, MKDEV(major, 0));
     }
     if (have_com2) {
-        int ret2 = unregister_chrdev_region(1, 1);
         /* Reset the hardware device for COM2 */
         uart16550_hw_cleanup_device(COM2_BASEPORT);
         /* Remove the sysfs info for /dev/com2 */
         device_destroy(uart16550_class, MKDEV(major, 1));
     }
-    if (ret1 != 0) {
-        printk("Error when unregistering device 1: ", ret1);
-    }
-    if (ret2 != 0) {
-        printk("Error when unregistering device 2: ", ret2);
-    }
     
-    cdev_del(&my_cdev);
+    cdev_del(&cdev1);
+    cdev_del(&cdev2);
     
     /*
      * Cleanup the sysfs device class.
