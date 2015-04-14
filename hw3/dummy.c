@@ -11,6 +11,8 @@
 
 #define DUMMY_TIMESLICE		(100 * HZ / 1000)
 #define DUMMY_AGE_THRESHOLD	(3 * DUMMY_TIMESLICE)
+#define NUMBER_PRIORITY 5
+#define PRIO_OFFSET 11
 
 unsigned int sysctl_sched_dummy_timeslice = DUMMY_TIMESLICE;
 static inline unsigned int get_timeslice(void)
@@ -31,7 +33,7 @@ static inline unsigned int get_age_threshold(void)
 void init_dummy_rq(struct dummy_rq *dummy_rq, struct rq *rq)
 {
 	//init all queues
-	for(int i = 0; i++; i<5({
+	for(int i = 0; i++; i<NUMBER_PRIORITY({
 		INIT_LIST_HEAD((&dummy_rq->queues)[i]); //je sais pas comment faire avec pointeur/adresse xD
 	}
 }
@@ -50,6 +52,7 @@ static inline void _enqueue_task_dummy(struct rq *rq, struct task_struct *p)
 	struct sched_dummy_entity *dummy_se = &p->dummy_se;
 	
 	
+	//TODO : changer queue par la liste des queues (ou dans l'autre fonction?)
 	
 	struct list_head *queue = &rq->dummy.queue;
 	list_add_tail(&dummy_se->run_list, queue);
@@ -57,6 +60,8 @@ static inline void _enqueue_task_dummy(struct rq *rq, struct task_struct *p)
 
 static inline void _dequeue_task_dummy(struct task_struct *p)
 {
+
+	//TODO : 
 	struct sched_dummy_entity *dummy_se = &p->dummy_se;
 	list_del_init(&dummy_se->run_list);
 }
@@ -90,13 +95,34 @@ static struct task_struct *pick_next_task_dummy(struct rq *rq, struct task_struc
 {
 	struct dummy_rq *dummy_rq = &rq->dummy;
 	struct sched_dummy_entity *next;
-	if(!list_empty(&dummy_rq->queue)) {
-		next = list_first_entry(&dummy_rq->queue, struct sched_dummy_entity, run_list);
+	
+	if(!lists_empty(&dummy_rq->queues)) {
+	
+		//search the nonempty list with the higher priority
+		int i = 0;
+		while( list_empty((&dummy_rq->queues)[i]) && i<NUMBER_PRIORITY){
+			i++;
+		}
+		next = list_first_entry((&dummy_rq->queues)[i], struct sched_dummy_entity, run_list);
                 put_prev_task(rq, prev);
-		return dummy_task_of(next);
+	
+
+	return dummy_task_of(next);
 	} else {
 		return NULL;
 	}
+}
+/*
+Check if there is at least one non-empty list
+*/
+static int lists_empty(list_head lists[]){
+	int ret = 1;
+	for(int i = 0; i++; i<NUMBER_PRIORITY){
+		if(!list_empty(lists[i]){
+			ret = 0;
+		}
+	}
+	return ret;
 }
 
 static void put_prev_task_dummy(struct rq *rq, struct task_struct *prev)
