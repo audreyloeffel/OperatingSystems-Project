@@ -47,15 +47,18 @@ static inline struct task_struct *dummy_task_of(struct sched_dummy_entity *dummy
 	return container_of(dummy_se, struct task_struct, dummy_se);
 }
 
-static inline void _enqueue_task_dummy(struct rq *rq, struct task_struct *p)
+static inline void _enqueue_task_dummy(struct list_head *queue, struct task_struct *p)
 {
-	struct sched_dummy_entity *dummy_se = &p->dummy_se;
+	
 	
 	
 	//TODO : changer queue par la liste des queues (ou dans l'autre fonction?)
+	//struct list_head *queues = &rq->dummy.queues;
 	
-	struct list_head *queue = &rq->dummy.queue;
-	list_add_tail(&dummy_se->run_list, queue);
+	struct sched_dummy_entity *dummy_se = &p->dummy_se;
+	struct task_struct *task = &dummy_se->run_list;
+	&task.prio = &task.static_prio;	
+	list_add_tail(task, queue);
 }
 
 static inline void _dequeue_task_dummy(struct task_struct *p)
@@ -72,12 +75,17 @@ static inline void _dequeue_task_dummy(struct task_struct *p)
 
 static void enqueue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-	_enqueue_task_dummy(rq, p);
+	long prio = p.prio-PRIO_OFFSET;
+	struct list_head *queue = &rq->dummy.queues[prio];
+	_enqueue_task_dummy(queue, p);
 	add_nr_running(rq,1);
 }
 
 static void dequeue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
+//Dans quel liste???
+	long prio = p.prio - PRIO_OFFSET;
+	struct list_head *queue = &rq -> dummy.queues[prio];
 	_dequeue_task_dummy(p);
 	sub_nr_running(rq,1);
 }
@@ -89,6 +97,16 @@ static void yield_task_dummy(struct rq *rq)
 static void check_preempt_curr_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
 // s'il y a des taches dans les queues de plus grandes priorité que p, on enqueue p, et dequeue l'autre tache
+	long prio = p.prio - PRIO_OFFSET; 
+	int i = 0;
+	while(list_empty(&rq->dummy->queues[i]) && i< NUMBER_PRIORITY){
+		i++
+	}
+	if(i<prio){
+	//the current task is preempted
+	enqueue_task_dummy(rq, p, 0);
+	//prendre la 1ere task de la liste i et la dequeue
+	}
 }
 
 static struct task_struct *pick_next_task_dummy(struct rq *rq, struct task_struct* prev)
