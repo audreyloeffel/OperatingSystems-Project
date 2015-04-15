@@ -52,7 +52,7 @@ static inline void _enqueue_task_dummy(struct list_head *queue, struct task_stru
 	
 	
 	
-	//TODO : changer queue par la liste des queues (ou dans l'autre fonction?)
+	//TODO : changer queue par la liste des queues ou dans l'autre fonction?
 	//struct list_head *queues = &rq->dummy.queues;
 	
 	struct sched_dummy_entity *dummy_se = &p->dummy_se;
@@ -63,8 +63,6 @@ static inline void _enqueue_task_dummy(struct list_head *queue, struct task_stru
 
 static inline void _dequeue_task_dummy(struct task_struct *p)
 {
-
-	//TODO : 
 	struct sched_dummy_entity *dummy_se = &p->dummy_se;
 	list_del_init(&dummy_se->run_list);
 }
@@ -83,7 +81,6 @@ static void enqueue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 
 static void dequeue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-//Dans quel liste???
 	long prio = p.prio - PRIO_OFFSET;
 	struct list_head *queue = &rq -> dummy.queues[prio];
 	_dequeue_task_dummy(p);
@@ -92,21 +89,19 @@ static void dequeue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 
 static void yield_task_dummy(struct rq *rq)
 {
+	_dequeue(rq->curr);
+	_enqueue(rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr)
+	//resched rt.c ou fair.c
 }
 
 static void check_preempt_curr_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
 // s'il y a des taches dans les queues de plus grandes priorité que p, on enqueue p, et dequeue l'autre tache
 	long prio = p.prio - PRIO_OFFSET; 
-	int i = 0;
-	while(list_empty(&rq->dummy->queues[i]) && i< NUMBER_PRIORITY){
-		i++
+	if(rq->curr.prio > prio) {
+		yield_task_dummy(rq);
 	}
-	if(i<prio){
-	//the current task is preempted
-	enqueue_task_dummy(rq, p, 0);
-	//prendre la 1ere task de la liste i et la dequeue
-	}
+	
 }
 
 static struct task_struct *pick_next_task_dummy(struct rq *rq, struct task_struct* prev)
@@ -153,6 +148,8 @@ static void set_curr_task_dummy(struct rq *rq)
 
 static void task_tick_dummy(struct rq *rq, struct task_struct *curr, int queued)
 {
+//appelé a chaque interrupt? ici aging et premption?
+//tous les jiffies, yield
 }
 
 static void switched_from_dummy(struct rq *rq, struct task_struct *p)
