@@ -1,0 +1,17 @@
+Part 1 - Priority scheduling with support for 5 priority levels:
+
+We changed the single queue of rq to a list of 5 queues, representing the 5 different priority levels, which are then initialized one by one. The priority level of the task defines in which queue the task will be assigned / deassigned in the queue_task_dummy and dequeue_task_dummy functions.
+
+Part 2 - Preemption due to a task of a higher priority becoming available:
+
+This is done in pick_next_task_dummy. We first check if the queues are empty, which would return NULL. Otherwise, we test each queue for emptiness, and we return the task of the first element of the highest priority queue.
+
+Part 3 - Preemption due to running task's timeslice expiry:
+
+That part is done in task_tick_dummy. For each tick (i.e. for each time the function is called), we check if the current task has expired its timeslice, if so, the task yields.
+
+Part 4 - A mechanism to prevent the starvation of processes with lower priority:
+
+This is also done in task_tick_dummy. For each tick, we check if each task in every queue of level 12 to 15 (level 11 tasks won’t be able to age anyway) has reached the aging threshold. If so, the task is dequeued, its dynamic priority (.prio) is changed, and it is requeued (in the right queue, now that the priority was changed).
+
+The other functions were not used, so we did not implement them.
