@@ -49,15 +49,8 @@ static inline struct task_struct *dummy_task_of(struct sched_dummy_entity *dummy
 
 static inline void _enqueue_task_dummy(struct list_head *queue, struct task_struct *p)
 {
-	
-	
-	
-	//TODO : changer queue par la liste des queues ou dans l'autre fonction?
-	//struct list_head *queues = &rq->dummy.queues;
-	
 	struct sched_dummy_entity *dummy_se = &p->dummy_se;
 	struct task_struct *task = &dummy_se->run_list;
-	//&task.prio = &task.static_prio;	
 	list_add_tail(task, queue);
 }
 
@@ -89,8 +82,6 @@ static void yield_task_dummy(struct rq *rq)
 {
 	_dequeue(&rq->curr);
 	_enqueue(&rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr)
-	//resched rt.c ou fair.c
-	//set_tsk_need_resched(p);
 	resched_curr(rq);
 }
 
@@ -147,15 +138,11 @@ static void set_curr_task_dummy(struct rq *rq)
 
 static void task_tick_dummy(struct rq *rq, struct task_struct *curr, int queued)
 {
-//appelé a chaque interrupt? ici aging et premption?
-//tous les jiffies, yield
-//struct list_head queues[] = rq->dummy_rq->queues;
-//long prio = curr.prio;
 
 struct task_struck task = NULL;
 // premption due to running task's timeslice expiry
 &rq->dummy_rq.time_slice++;
-if(&dummy_rq,time_slice>= DUMMY_TIMESLICE){
+if(&dummy_rq.time_slice>= DUMMY_TIMESLICE){
 	yield_task_dummy(rq);
 }
 //prevent the stravation
