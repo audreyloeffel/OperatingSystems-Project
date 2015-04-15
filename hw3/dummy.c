@@ -92,6 +92,7 @@ static void yield_task_dummy(struct rq *rq)
 	_dequeue(rq->curr);
 	_enqueue(rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr)
 	//resched rt.c ou fair.c
+	set_tsk_need_resched(p);
 }
 
 static void check_preempt_curr_dummy(struct rq *rq, struct task_struct *p, int flags)
