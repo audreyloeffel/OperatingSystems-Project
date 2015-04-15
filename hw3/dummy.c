@@ -80,15 +80,15 @@ static void dequeue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 
 static void yield_task_dummy(struct rq *rq)
 {
-	_dequeue(&rq->curr);
-	_enqueue(&rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr)
+	_dequeue_task_dummy(rq->curr);
+	_enqueue_task_dummy(rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr);
 	resched_curr(rq);
 }
 
 static void check_preempt_curr_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-	long prio = p.prio - PRIO_OFFSET; 
-	if(&rq->curr.prio > prio) {
+	long prio = p.prio; 
+	if(&rq->curr.prio > prio){
 		yield_task_dummy(rq);
 	}
 	
@@ -99,7 +99,7 @@ static struct task_struct *pick_next_task_dummy(struct rq *rq, struct task_struc
 	struct dummy_rq *dummy_rq = &rq->dummy;
 	struct sched_dummy_entity *next;
 	
-	if(!lists_empty(&dummy_rq->queues)) {
+	if(!lists_empty(dummy_rq->queues)) {
 	
 		//search the nonempty list with the higher priority
 		int i = 0;
@@ -145,7 +145,7 @@ struct task_struck task = NULL;
 if(&dummy_rq.time_slice>= DUMMY_TIMESLICE){
 	yield_task_dummy(rq);
 }
-//prevent the stravation
+//prevent the starvation
 for(int i = 0; i<NUMBER_PRIORITY; i++){
 	list_for_each_entry(task, rq->dummy_rq->queues[i], member){
 		&task.tick_time++;
