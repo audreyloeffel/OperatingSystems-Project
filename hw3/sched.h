@@ -473,8 +473,6 @@ struct dummy_rq {
 	
 	//replace the fifo queue by 5 fifo queues, one for each priority.
 	struct list_head queues[5];
-	// Counter to elevate the priorities
-	int tick_time;
 	int time_slice;
 	
 };

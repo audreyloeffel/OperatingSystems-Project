@@ -34,7 +34,7 @@ void init_dummy_rq(struct dummy_rq *dummy_rq, struct rq *rq)
 {
 	//init all queues
 	for(int i = 0; i++; i<NUMBER_PRIORITY({
-		INIT_LIST_HEAD((&dummy_rq->queues)[i]); //je sais pas comment faire avec pointeur/adresse xD
+		INIT_LIST_HEAD(&dummy_rq->queues[i]);
 	}
 }
 
@@ -57,7 +57,7 @@ static inline void _enqueue_task_dummy(struct list_head *queue, struct task_stru
 	
 	struct sched_dummy_entity *dummy_se = &p->dummy_se;
 	struct task_struct *task = &dummy_se->run_list;
-	&task.prio = &task.static_prio;	
+	//&task.prio = &task.static_prio;	
 	list_add_tail(task, queue);
 }
 
@@ -81,25 +81,23 @@ static void enqueue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 
 static void dequeue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-	long prio = p.prio - PRIO_OFFSET;
-	struct list_head *queue = &rq -> dummy.queues[prio];
 	_dequeue_task_dummy(p);
 	sub_nr_running(rq,1);
 }
 
 static void yield_task_dummy(struct rq *rq)
 {
-	_dequeue(rq->curr);
-	_enqueue(rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr)
+	_dequeue(&rq->curr);
+	_enqueue(&rq->dummy_rq->queue[rq->curr.prio-PRIO_OFFSET], rq->curr)
 	//resched rt.c ou fair.c
-	set_tsk_need_resched(p);
+	//set_tsk_need_resched(p);
+	resched_curr(rq);
 }
 
 static void check_preempt_curr_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-// s'il y a des taches dans les queues de plus grandes priorité que p, on enqueue p, et dequeue l'autre tache
 	long prio = p.prio - PRIO_OFFSET; 
-	if(rq->curr.prio > prio) {
+	if(&rq->curr.prio > prio) {
 		yield_task_dummy(rq);
 	}
 	
@@ -114,10 +112,10 @@ static struct task_struct *pick_next_task_dummy(struct rq *rq, struct task_struc
 	
 		//search the nonempty list with the higher priority
 		int i = 0;
-		while( list_empty((&dummy_rq->queues)[i]) && i<NUMBER_PRIORITY){
+		while( list_empty(&dummy_rq->queues[i]) && i<NUMBER_PRIORITY){
 			i++;
 		}
-		next = list_first_entry((&dummy_rq->queues)[i], struct sched_dummy_entity, run_list);
+		next = list_first_entry(&dummy_rq->queues[i], struct sched_dummy_entity, run_list);
                 put_prev_task(rq, prev);
 	
 
@@ -151,6 +149,32 @@ static void task_tick_dummy(struct rq *rq, struct task_struct *curr, int queued)
 {
 //appelé a chaque interrupt? ici aging et premption?
 //tous les jiffies, yield
+//struct list_head queues[] = rq->dummy_rq->queues;
+//long prio = curr.prio;
+
+struct task_struck task = NULL;
+// premption due to running task's timeslice expiry
+&rq->dummy_rq.time_slice++;
+if(&dummy_rq,time_slice>= DUMMY_TIMESLICE){
+	yield_task_dummy(rq);
+}
+//prevent the stravation
+for(int i = 0; i<NUMBER_PRIORITY; i++){
+	list_for_each_entry(task, rq->dummy_rq->queues[i], member){
+		&task.tick_time++;
+		if(&task.tick_time>DUMMY_AGE_THRESHOLD){
+			&task.tick_time = 0;
+			if(&task.prio > PRIO_OFFSET){
+				&task.prio--;
+				dequeue_task_dummy(rq, task, 0);
+				enqueue_task_dummy(rq, task, 0);
+			}
+			
+		}
+	}
+
+
+
 }
 
 static void switched_from_dummy(struct rq *rq, struct task_struct *p)
@@ -163,6 +187,7 @@ static void switched_to_dummy(struct rq *rq, struct task_struct *p)
 
 static void prio_changed_dummy(struct rq*rq, struct task_struct *p, int oldprio)
 {
+	&rq->curr.prio = p.prio;
 }
 
 static unsigned int get_rr_interval_dummy(struct rq* rq, struct task_struct *p)
