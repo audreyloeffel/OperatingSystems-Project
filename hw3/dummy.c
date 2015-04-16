@@ -14,6 +14,8 @@
 #define NUMBER_PRIORITY 5
 #define PRIO_OFFSET 11
 
+
+
 unsigned int sysctl_sched_dummy_timeslice = DUMMY_TIMESLICE;
 static inline unsigned int get_timeslice(void)
 {
@@ -33,15 +35,31 @@ static inline unsigned int get_age_threshold(void)
 void init_dummy_rq(struct dummy_rq *dummy_rq, struct rq *rq)
 {
 	//init all queues
-	int i = 0;
-	for(i; i++; i<NUMBER_PRIORITY){
-		INIT_LIST_HEAD(&(&dummy_rq->queues)[i]);
+	int i;
+	for(i = 0; i<NUMBER_PRIORITY; i++){
+		INIT_LIST_HEAD(&dummy_rq->queues[i]);
 	}
+	dummy_rq->tick_time = 0;
 }
 
 /*
  * Helper functions
  */
+  
+/*
+Check if there is at least one non-empty list
+*/
+static int lists_empty(struct list_head lists[]){
+	int ret = 1;
+	int i;
+	for(i = 0; i<NUMBER_PRIORITY; i++){
+		if(!list_empty(&lists[i])){
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
 
 static inline struct task_struct *dummy_task_of(struct sched_dummy_entity *dummy_se)
 {
@@ -66,7 +84,7 @@ static inline void _dequeue_task_dummy(struct task_struct *p)
 
 static void enqueue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-	long prio = &p.prio-PRIO_OFFSET;
+	long prio = p->prio-PRIO_OFFSET;
 	struct list_head *queue = &rq->dummy.queues[prio];
 	_enqueue_task_dummy(queue, p);
 	add_nr_running(rq,1);
@@ -80,32 +98,19 @@ static void dequeue_task_dummy(struct rq *rq, struct task_struct *p, int flags)
 
 static void yield_task_dummy(struct rq *rq)
 {
-	long prio_curr = &(&rq->curr)->prio;
+	long prio_curr = rq->curr->prio;
 	_dequeue_task_dummy(rq->curr);
-	_enqueue_task_dummy(&rq->dummy->queue[prio_curr-PRIO_OFFSET], rq->curr);
+	_enqueue_task_dummy(&rq->dummy.queues[prio_curr-PRIO_OFFSET], rq->curr);
 	resched_curr(rq);
 }
 
 static void check_preempt_curr_dummy(struct rq *rq, struct task_struct *p, int flags)
 {
-	long prio = &p.prio; 
-	if(&rq->curr.prio > prio){
+	long prio = p->prio; 
+	if(rq->curr->prio > prio){
 		yield_task_dummy(rq);
 	}
 	
-}
-
-/*
-Check if there is at least one non-empty list
-*/
-static int lists_empty(list_head lists[]){
-	int ret = 1;
-	for(int i = 0; i++; i<NUMBER_PRIORITY){
-		if(!list_empty(lists[i]){
-			ret = 0;
-		}
-	}
-	return ret;
 }
 
 static struct task_struct *pick_next_task_dummy(struct rq *rq, struct task_struct* prev)
@@ -142,27 +147,30 @@ static void set_curr_task_dummy(struct rq *rq)
 static void task_tick_dummy(struct rq *rq, struct task_struct *curr, int queued)
 {
 
-	struct task_struck task = NULL;
+	struct sched_dummy_entity *se= NULL;
 	struct dummy_rq *dummy_rq = &rq->dummy;
+	struct list_head *queue;
 	// premption due to running task's timeslice expiry
-	
-	&dummy_rq.time_slice++;
+	struct task_struct *task;
+	dummy_rq->time_slice++;
 	
 
-	if(&dummy_rq.time_slice>= DUMMY_TIMESLICE){
+	if(dummy_rq->time_slice>= DUMMY_TIMESLICE){
 		yield_task_dummy(rq);
 	}
 	//prevent the starvation
-	int i = 0;
-	for(i; i<NUMBER_PRIORITY; i++){
-		list_for_each_entry(task, dummy_rq->queues[i], member){
-			&task.tick_time++;
-			if(&task.tick_time>DUMMY_AGE_THRESHOLD){
-				&task.tick_time = 0;
-				if(&task.prio > PRIO_OFFSET){
-					&task.prio--;
-					dequeue_task_dummy(rq, &task, 0);
-					enqueue_task_dummy(rq, &task, 0);
+	int i;
+	for(i = 0; i<NUMBER_PRIORITY; i++){
+		queue = &dummy_rq->queues[i];
+		list_for_each_entry(se, queue, run_list){
+			dummy_rq->tick_time++;
+			if(dummy_rq->tick_time>DUMMY_AGE_THRESHOLD){
+				dummy_rq->tick_time = 0;
+				task = dummy_task_of(se);
+				if(task->prio > PRIO_OFFSET){
+					task->prio--;
+					dequeue_task_dummy(rq, task, 0);
+					enqueue_task_dummy(rq, task, 0);
 				}
 				
 			}
@@ -170,6 +178,7 @@ static void task_tick_dummy(struct rq *rq, struct task_struct *curr, int queued)
 
 
 
+}
 }
 
 static void switched_from_dummy(struct rq *rq, struct task_struct *p)
@@ -182,7 +191,7 @@ static void switched_to_dummy(struct rq *rq, struct task_struct *p)
 
 static void prio_changed_dummy(struct rq*rq, struct task_struct *p, int oldprio)
 {
-	&rq->curr.prio = p.prio;
+	rq->curr->prio = p->prio;
 }
 
 static unsigned int get_rr_interval_dummy(struct rq* rq, struct task_struct *p)
