@@ -150,6 +150,7 @@ static void task_tick_dummy(struct rq *rq, struct task_struct *curr, int queued)
 	struct sched_dummy_entity *se= NULL;
 	struct dummy_rq *dummy_rq = &rq->dummy;
 	struct list_head *queue;
+	struct list_head *next = NULL;
 	// premption due to running task's timeslice expiry
 	struct task_struct *task;
 	dummy_rq->time_slice++;
