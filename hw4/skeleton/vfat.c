@@ -20,7 +20,7 @@
 #include "util.h"
 #include "debugfs.h"
 
-#define DEBUG_PRINT(...) printf(__VA_ARGS)
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
 
 iconv_t iconv_utf16;
 char* DEBUGFS_PATH = "/.debug";
@@ -56,7 +56,27 @@ vfat_init(const char *dev)
 
 }
 
-/* XXX add your code here */
+/* Point 1: read the first 512 bytes from the drive */
+int vfat_read_from_file (void *bootSector, char *fileName)
+{
+  FILE *fileHandle;
+  int  result;
+
+  fileHandle = fopen(fileName, "rb");
+  if (fileHandle == NULL) {
+    DEBUG_PRINT("ERROR: Error opening file: %s", fileName);
+    return 0;
+  }
+
+  result = fread(bootSector, 1, 512, fileHandle);
+  if (result != 512) {
+    DEBUG_PRINT("ERROR: Error reading file: %s", fileName);
+    return 0;
+  }
+
+  fclose(fileHandle);
+  return result;
+}
 
 int vfat_next_cluster(uint32_t c)
 {
