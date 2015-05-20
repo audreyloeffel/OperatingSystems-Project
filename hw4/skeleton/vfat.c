@@ -128,6 +128,10 @@ int vfat_next_cluster(uint32_t c)
 	u_int32_t next_cluster;
 		read(c /*vfat_info.fs*/, &next_cluster, 4);
 		
+		//mask the 4 higher bits
+		u_int32_t mask = 0x0fffff;
+		next_cluster = mask & next_cluster;
+
 		if(0x0FFFFFF8 <= next_cluster && next_cluster <= 0x0FFFFFFF){
 			next_cluster = 0xffffff;
 		} 
