@@ -25,6 +25,7 @@
 iconv_t iconv_utf16;
 char* DEBUGFS_PATH = "/.debug";
 
+int isFAT32(struct fat_boot_header fb);
 
 static void
 vfat_init(const char *dev)
@@ -44,6 +45,9 @@ vfat_init(const char *dev)
         err(1, "open(%s)", dev);
     if (pread(vfat_info.fd, &s, sizeof(s), 0) != sizeof(s))
         err(1, "read super block");
+	if(!isFAT32(s)) {
+		err(1, "%s is not a FAT32 system\n", dev);
+	}
 
     /* XXX add your code here */
     vfat_info.root_inode.st_ino = le32toh(s.root_cluster);
@@ -60,7 +64,7 @@ vfat_init(const char *dev)
 int vfat_read_from_file (void *bootSector, char *fileName)
 {
   FILE *fileHandle;
-  int  result;
+  int result;
 
   fileHandle = fopen(fileName, "rb");
   if (fileHandle == NULL) {
@@ -76,6 +80,45 @@ int vfat_read_from_file (void *bootSector, char *fileName)
 
   fclose(fileHandle);
   return result;
+}
+
+/* Point 2: check is the drive is FAT32 */
+int isFAT32(struct fat_boot_header fb) {
+	int root_dir_sectors = (fb.root_max_entries*32 + (fb.bytes_per_sector - 1)) / fb.bytes_per_sector;
+	
+	if(root_dir_sectors != 0) {
+		return 0;
+	}
+	
+	uint32_t FATSz;
+	uint32_t totSec;
+	uint32_t dataSec;
+	uint32_t countOfClusters;
+	
+	if(fb.sectors_per_fat_small != 0) {
+		FATSz = fb.sectors_per_fat_small;
+	}
+    else {
+		FATSz = fb.sectors_per_fat;
+	}
+	
+	if(fb.total_sectors_small != 0) {
+		totSec = fb.total_sectors_small;
+	} 
+    else {
+		totSec = fb.total_sectors;
+	}
+	
+	dataSec = totSec - (fb.reserved_sectors + (fb.fat_count * FATSz) + root_dir_sectors);
+	
+	countOfClusters = dataSec / fb.sectors_per_cluster;
+
+    if (countOfClusters >= 65525) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
 
 int vfat_next_cluster(uint32_t c)
