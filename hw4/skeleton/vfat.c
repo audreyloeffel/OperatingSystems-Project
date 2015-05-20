@@ -131,8 +131,16 @@ int isFAT32(struct fat_boot_header fb) {
 
 int vfat_next_cluster(uint32_t c)
 {
-    /* TODO: Read FAT to actually get the next cluster */
-    return 0xffffff; // no next cluster
+
+    /* Point 2: Read FAT to actually get the next cluster */
+	u_int32_t next_cluster;
+		read(c /*vfat_info.fs*/, &next_cluster, 4);
+		
+		if(0x0FFFFFF8 <= next_cluster && next_cluster <= 0x0FFFFFFF){
+			next_cluster = 0xffffff;
+		} 
+		
+    return next_cluster;
 }
 
 int vfat_readdir(uint32_t first_cluster, fuse_fill_dir_t callback, void *callbackdata)
