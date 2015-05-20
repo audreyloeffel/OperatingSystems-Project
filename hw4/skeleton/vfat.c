@@ -51,6 +51,11 @@ vfat_init(const char *dev)
 	if(!isFAT32(vfat_info.fb)) {
 		err(1, "%s is not a FAT32 system\n", dev);
 	}
+    
+    /* Point 2: parse the BPB sector info */
+	vfat_info.fat_begin_offset = vfat_info.fb.reserved_sectors * vfat_info.fb.bytes_per_sector;
+	vfat_info.cluster_begin_offset = vfat_info.fat_begin_offset + (vfat_info.fb.sectors_per_fat * vfat_info.fb.bytes_per_sector * vfat_info.fb.fat_count);
+	vfat_info.cluster_size = vfat_info.fb.sectors_per_cluster * vfat_info.fb.bytes_per_sector;
 
     /* XXX add your code here */
     vfat_info.root_inode.st_ino = le32toh(s.root_cluster);
