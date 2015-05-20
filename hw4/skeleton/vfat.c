@@ -53,9 +53,14 @@ vfat_init(const char *dev)
 	}
     
     /* Point 2: parse the BPB sector info */
+
+	
+
 	vfat_info.fat_begin_offset = vfat_info.fb.reserved_sectors * vfat_info.fb.bytes_per_sector;
 	vfat_info.cluster_begin_offset = vfat_info.fat_begin_offset + (vfat_info.fb.sectors_per_fat * vfat_info.fb.bytes_per_sector * vfat_info.fb.fat_count);
 	vfat_info.cluster_size = vfat_info.fb.sectors_per_cluster * vfat_info.fb.bytes_per_sector;
+
+	vfat_info.fat = mmap_file(vfat_info.fd, 0/*offset ??*/, 1000 /*todo: size??*/); 
 
     /* XXX add your code here */
     vfat_info.root_inode.st_ino = le32toh(s.root_cluster);
@@ -133,16 +138,7 @@ int vfat_next_cluster(uint32_t c)
 {
 
     /* Point 2: Read FAT to actually get the next cluster */
-	u_int32_t next_cluster;
-		read(c /*vfat_info.fs*/, &next_cluster, 4);
-		
-		//mask the 4 higher bits
-		u_int32_t mask = 0x0fffff;
-		next_cluster = mask & next_cluster;
-
-		if(0x0FFFFFF8 <= next_cluster && next_cluster <= 0x0FFFFFFF){
-			next_cluster = 0xffffff;
-		} 
+	u_int32_t next_cluster = vfat_info.fat[c];
 		
     return next_cluster;
 }
