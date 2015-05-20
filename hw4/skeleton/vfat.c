@@ -20,6 +20,9 @@
 #include "util.h"
 #include "debugfs.h"
 
+#define LONGNAME_MAXLENGTH 512
+#define LONGNAME_MAXCHUNKS 40
+
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
 
 iconv_t iconv_utf16;
@@ -43,11 +46,16 @@ vfat_init(const char *dev)
     vfat_info.fd = open(dev, O_RDONLY);
     if (vfat_info.fd < 0)
         err(1, "open(%s)", dev);
-    if (pread(vfat_info.fd, &s, sizeof(s), 0) != sizeof(s))
+    if (pread(vfat_info.fd, &vfat_info.fb, sizeof(vfat_info.fb), 0) != sizeof(s))
         err(1, "read super block");
-	if(!isFAT32(s)) {
+	if(!isFAT32(vfat_info.fb)) {
 		err(1, "%s is not a FAT32 system\n", dev);
 	}
+    
+    /* Point 2: parse the BPB sector info */
+	vfat_info.fat_begin_offset = vfat_info.fb.reserved_sectors * vfat_info.fb.bytes_per_sector;
+	vfat_info.cluster_begin_offset = vfat_info.fat_begin_offset + (vfat_info.fb.sectors_per_fat * vfat_info.fb.bytes_per_sector * vfat_info.fb.fat_count);
+	vfat_info.cluster_size = vfat_info.fb.sectors_per_cluster * vfat_info.fb.bytes_per_sector;
 
     /* XXX add your code here */
     vfat_info.root_inode.st_ino = le32toh(s.root_cluster);
@@ -155,6 +163,7 @@ int vfat_readdir(uint32_t first_cluster, fuse_fill_dir_t callback, void *callbac
 
 // Used by vfat_search_entry()
 struct vfat_search_data {
+    off_t first_cluster;
     const char*  name;
     int          found;
     struct stat* st;
@@ -190,12 +199,49 @@ int vfat_resolve(const char *path, struct stat *st)
         - strtok to tokenize by slash. See manpage
         - vfat_readdir in conjuction with vfat_search_entry
     */
-    int res = -ENOENT; // Not Found
-    if (strcmp("/", path) == 0) {
-        *st = vfat_info.root_inode;
-        res = 0;
-    }
-    return res;
+    struct vfat_search_data sd;
+	sd.st = st;
+	uint32_t current_cluster = vfat_info.fb.root_cluster;
+
+    const char separator[2] = "/";
+	
+	if (strcmp(separator, path) == 0) {
+		st->st_dev = 0; // Ignored by FUSE
+		st->st_ino = 0; // Ignored by FUSE unless overridden
+		st->st_mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
+		st->st_nlink = 1;
+		st->st_uid = vfat_info.mount_uid;
+		st->st_gid = vfat_info.mount_gid;
+		st->st_rdev = 0;
+		st->st_size = 0;
+		st->st_blksize = 0; // Ignored by FUSE
+		st->st_blocks = 1;
+		return current_cluster;
+	}
+    else {
+		char path_copy[LONGNAME_MAXLENGTH];
+		strcpy(path_copy, path);
+		
+		char* token;
+		token = strtok(path_copy, separator);
+		
+		while(token != NULL) {
+			sd.first_cluster = 0;
+			sd.found = 0;
+			sd.name = token;
+			
+			vfat_readdir(current_cluster, vfat_search_entry, &sd);
+			current_cluster = sd.first_cluster;
+			
+			if(sd.found == 0) {
+				return -ENOENT;
+			}
+			
+			token = strtok(NULL, separator);
+		}
+	}
+	
+	return current_cluster;
 }
 
 // Get file attributes
