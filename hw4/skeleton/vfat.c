@@ -59,7 +59,8 @@ vfat_init(const char *dev)
     vfat_info.bytes_per_sector = vfat_info.fb.bytes_per_sector;
     vfat_info.sectors_per_cluster = vfat_info.fb.sectors_per_cluster;
     vfat_info.reserved_sectors = vfat_info.fb.reserved_sectors;
-    vfat_info.fat_entries = vfat_info.fb.root_max_entries;
+    vfat_info.fat_size = vfat_info.fb.sectors_per_fat * vfat_info.fb.bytes_per_sector;
+    vfat_info.fat_entries = vfat_info.fat_size/sizeof(uint32_t);
 
 	vfat_info.fat = mmap_file(vfat_info.fd, vfat_info.fat_begin_offset, 512 /*todo: size??*/); 
 
